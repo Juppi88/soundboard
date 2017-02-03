@@ -7,6 +7,14 @@ uint32_t sound_count = 0;
 char **sounds = NULL;
 static char sound_directory[MAX_PATH];
 
+static char json[65535]; // JSON response which contains all the sounds.
+
+// ----------------------------------------------------------------------
+ 
+static void sounds_format_json(void);
+
+// ----------------------------------------------------------------------
+
 void sounds_initialize(const char *folder)
 {
 	char directory[MAX_PATH];
@@ -71,7 +79,8 @@ void sounds_initialize(const char *folder)
 	
 	FindClose(file);
 
-	printf("Loaded %u sounds in directory %s.\n", sound_count, sound_directory);
+	// Now that we have the list of sounds, format the JSON response containing all the sounds and cache it.
+	sounds_format_json();
 }
 
 void sounds_shutdown(void)
@@ -93,8 +102,28 @@ void sounds_play(const char *sound)
 {
 	char path[MAX_PATH];
 
-	printf("Playing sound '%s'.", sound);
-
 	snprintf(path, sizeof(path), "%s/%s.wav", sound_directory, sound);
 	PlaySound(path, NULL, SND_ASYNC);
+}
+
+const char *sounds_get_json_list(void)
+{
+	return json;
+}
+
+static void sounds_format_json(void)
+{
+	size_t len = 0;
+
+	// TODO: Careful with buffer overflows, idiot!
+	len += snprintf(&json[len], sizeof(json) - len, "{\n\t\"sounds\":[\n\t\t");
+	
+	// Add each sound to the JSON.
+	if (sound_count != 0) {
+		for (uint32_t i = 0; i < sound_count; ++i) {
+			len += snprintf(&json[len], sizeof(json) - len, "\"%s\"%s", sounds[i], (i < sound_count - 1 ? ", " : ""));
+		}
+	}
+
+	len += snprintf(&json[len], sizeof(json) - len, "\n\t]\n}");
 }
