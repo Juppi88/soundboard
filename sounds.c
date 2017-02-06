@@ -1,83 +1,33 @@
 #include "sounds.h"
+#include "utils.h"
 #include <stdio.h>
 #include <string.h>
 #include <malloc.h>
 
-uint32_t sound_count = 0;
-char **sounds = NULL;
 static char sound_directory[MAX_PATH];
+static struct sound_folder_t *first_folder;
+static uint32_t folder_count;
 
-static char json[65535]; // JSON response which contains all the sounds.
+static char json[131072]; // JSON response which contains all the sounds.
 
 // ----------------------------------------------------------------------
  
+static void sounds_process_subdirectory(char *directory);
+static void sounds_count_wav_files(char *file_name);
+static void sounds_add_sound_to_list(char *file_name);
 static void sounds_format_json(void);
 
 // ----------------------------------------------------------------------
 
 void sounds_initialize(const char *folder)
 {
-	char directory[MAX_PATH];
+	folder_count = 0;
 
-	snprintf(sound_directory, sizeof(sound_directory), "%s/", folder);
-	snprintf(directory, sizeof(directory), "%s/*", folder);
+	// Cache the sound folder name for later use.
+	strncpy(sound_directory, folder, sizeof(sound_directory));
 
-	// Open the folder and get a list of files inside it.
-	WIN32_FIND_DATA find_data;
-	HANDLE file = FindFirstFile(directory, &find_data);
-
-	if (file == INVALID_HANDLE_VALUE) {
-
-		// Something went wrong, the folder doesn't exist?
-		// TODO: Handle better lol!
-		printf("Could not find first file in directory '%s'!\n", directory);
-		return;
-	}
-
-	// Count the number of sounds in the directory. Skip everything that isn't a .wav file (or at least pretend to be one).
-	sound_count = 0;
-
-	do {
-		// Skip directories.
-		if ((find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0) {
-			continue;
-		}
-
-		// Make sure the filename ends with .wav.
-		size_t len = strlen(find_data.cFileName);
-
-		if (len > 4 && strcmp(&find_data.cFileName[len - 4], ".wav") == 0) {
-			++sound_count;
-		}
-	} while (FindNextFile(file, &find_data) != 0);
-
-	// Allocate an array for the sound list...
-	sounds = malloc(sound_count * sizeof(char *));
-	
-	// ...and add each sound in the sound folder to it.
-	file = FindFirstFile(directory, &find_data);
-
-	uint32_t counter = 0;
-
-	do {
-		if ((find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0) {
-			continue;
-		}
-
-		size_t len = strlen(find_data.cFileName);
-
-		if (len > 4 && strcmp(&find_data.cFileName[len - 4], ".wav") == 0) {
-			// Remove the file extension and add the file to the sound list.
-			find_data.cFileName[len - 4] = 0;
-
-			sounds[counter] = malloc(len - 3);
-			strncpy(sounds[counter], find_data.cFileName, len - 3);
-
-			++counter;
-		}
-	} while (FindNextFile(file, &find_data) != 0);
-	
-	FindClose(file);
+	// Load all the sounds from the subdirectories within the main sound folder.
+	for_each_item_in_directory(folder, true, sounds_process_subdirectory);
 
 	// Now that we have the list of sounds, format the JSON response containing all the sounds and cache it.
 	sounds_format_json();
@@ -85,25 +35,31 @@ void sounds_initialize(const char *folder)
 
 void sounds_shutdown(void)
 {
-	*sound_directory = 0;
+	// Free all the things!
+	for (struct sound_folder_t *folder = first_folder, *tmp; folder != NULL; folder = tmp) {
 
-	// Free the sound array and its contents.
-	for (uint32_t i = 0; i < sound_count; ++i) {
-		free(sounds[i]);
+		tmp = folder->next;
+
+		for (uint32_t i = 0; i < folder->sound_count; ++i) {
+			free(folder->sounds[i]);
+		}
+
+		free(folder->sounds);
+		free(folder->name);
+		free(folder);
 	}
 
-	free(sounds);
-
-	sound_count = 0;
-	sounds = NULL;
+	*sound_directory = 0;
+	folder_count = 0;
+	first_folder = NULL;
 }
 
-void sounds_play(const char *sound)
+void sounds_play(const char *category, const char *sound)
 {
 	char path[MAX_PATH];
 
-	snprintf(path, sizeof(path), "%s/%s.wav", sound_directory, sound);
-	PlaySound(path, NULL, SND_ASYNC);
+	snprintf(path, sizeof(path), "%s/%s/%s.wav", sound_directory, category, sound);
+	PlaySound(path, NULL, SND_ASYNC | SND_NOWAIT);
 }
 
 const char *sounds_get_json_list(void)
@@ -111,18 +67,87 @@ const char *sounds_get_json_list(void)
 	return json;
 }
 
+static void sounds_process_subdirectory(char *directory)
+{
+	++folder_count;
+
+	// Create a folder entry for the subdirectory.
+	struct sound_folder_t *folder = malloc(sizeof(*folder));
+	memset(folder, 0, sizeof(*folder));
+
+	folder->name = string_duplicate(directory);
+
+	// Add the folder to the list of subdirectories.
+	if (first_folder != NULL) {
+		folder->next = first_folder;
+	}
+
+	first_folder = folder;
+
+	// Count all the .wav files in the folder.
+	char path[MAX_PATH];
+	snprintf(path, sizeof(path), "%s/%s", sound_directory, directory);
+
+	for_each_item_in_directory(path, false, sounds_count_wav_files);
+
+	// Create an array for the names of the sound files and populate it.
+	folder->sounds = malloc(folder->sound_count * sizeof(char *));
+	folder->sound_count = 0;
+
+	for_each_item_in_directory(path, false, sounds_add_sound_to_list);
+
+	// And we're done!
+	printf("Found %u sound files in folder '%s'.\n", folder->sound_count, folder->name);
+}
+
+static void sounds_count_wav_files(char *file_name)
+{
+	// Ignore all non-wav files.
+	if (!string_ends_with(file_name, ".wav")) {
+		return;
+	}
+
+	first_folder->sound_count++;
+}
+
+static void sounds_add_sound_to_list(char *file_name)
+{
+	// Ignore all non-wav files.
+	if (!string_ends_with(file_name, ".wav")) {
+		return;
+	}
+
+	// Strip the file extension.
+	file_name[strlen(file_name) - 4] = 0;
+
+	// Add the sound to the sound array.
+	first_folder->sounds[first_folder->sound_count] = string_duplicate(file_name);
+	first_folder->sound_count++;
+}
+
 static void sounds_format_json(void)
 {
-	size_t len = 0;
+	size_t len = 0, c = 0;
 
 	// TODO: Careful with buffer overflows, idiot!
-	len += snprintf(&json[len], sizeof(json) - len, "{\n\t\"sounds\":[\n\t\t");
-	
-	// Add each sound to the JSON.
-	if (sound_count != 0) {
-		for (uint32_t i = 0; i < sound_count; ++i) {
-			len += snprintf(&json[len], sizeof(json) - len, "\"%s\"%s", sounds[i], (i < sound_count - 1 ? ", " : ""));
+	len += snprintf(&json[len], sizeof(json) - len, "{\n\t\"folders\":[\n\t\t");
+
+	for (struct sound_folder_t *folder = first_folder; folder != NULL; folder = folder->next) {
+
+		++c;
+
+		len += snprintf(&json[len], sizeof(json) - len, "{\n\t\t\t\"name\": \"%s\",\n\t\t\t", folder->name);
+		len += snprintf(&json[len], sizeof(json) - len, "\"sounds\": [\n\t\t\t");
+
+		// Add each sound to the JSON.
+		if (folder->sound_count != 0) {
+			for (uint32_t i = 0; i < folder->sound_count; ++i) {
+				len += snprintf(&json[len], sizeof(json) - len, "\"%s\"%s", folder->sounds[i], (i < folder->sound_count - 1 ? ", " : ""));
+			}
 		}
+
+		len += snprintf(&json[len], sizeof(json) - len, "\n\t\t\t]");
+		len += snprintf(&json[len], sizeof(json) - len, "\n\t\t}%s\n\t\t", c < folder_count ? "," : "");
 	}
 
 	len += snprintf(&json[len], sizeof(json) - len, "\n\t]\n}");

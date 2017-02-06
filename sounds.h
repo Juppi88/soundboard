@@ -7,16 +7,20 @@
 
 // --------------------------------------------------------------------------------
 
-void sounds_initialize(const char *path);
-void sounds_shutdown(void);
-
-void sounds_play(const char *sound);
-
-const char *sounds_get_json_list(void);
+struct sound_folder_t {
+	char *name;
+	char **sounds;
+	uint32_t sound_count;
+	struct sound_folder_t *next;
+};
 
 // --------------------------------------------------------------------------------
 
-extern uint32_t sound_count;
-extern char **sounds;
+void sounds_initialize(const char *path);
+void sounds_shutdown(void);
+
+void sounds_play(const char *category, const char *sound);
+
+const char *sounds_get_json_list(void);
 
 #endif

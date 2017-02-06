@@ -147,12 +147,14 @@
     <ClCompile Include="httpserver\httpsocket.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="sounds.c" />
+    <ClCompile Include="utils.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="httpserver\httpserver.h" />
     <ClInclude Include="httpserver\httpsocket.h" />
     <ClInclude Include="main.h" />
     <ClInclude Include="sounds.h" />
+    <ClInclude Include="utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

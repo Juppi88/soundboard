@@ -2,7 +2,12 @@
 #include "sounds.h"
 #include "httpserver/httpserver.h"
 #include <stdio.h>
-//#include <time.h>
+
+// The folder in which all the sound category subolders are located.
+// TODO: Supply this as a command line argument?
+static const char *directory = "sounds";
+
+// --------------------------------------------------
 
 static struct http_response_t handle_request(struct http_request_t *request)
 {
@@ -19,16 +24,40 @@ static struct http_response_t handle_request(struct http_request_t *request)
 		printf("Sound list was requested.\n");
 	}
 
+	// Refresh the sound list.
+	// This will go through all the sound files so it's best to do it only on request and not every time someone requests the sound list.
+	if (strcmp("/refresh/", request->request) == 0) {
+
+		response.message = HTTP_200_OK;
+
+		printf("Refreshing sound lists...\n");
+
+		sounds_shutdown();
+		sounds_initialize(directory);
+	}
+
 	// Play a sound with the given filename.
 	else if (strncmp("/play/", request->request, 6) == 0) {
 
-		const char *sound = &request->request[6];
+		char req[128];
+		strncpy(req, request->request, sizeof(req));
 
-		if (*sound != 0) {
+		// Get the requested category and sound name from the request URL.
+		char *category = &req[6], *s = category;
+
+		while (*s) {
+			if (*s == '/') {
+				*s++ = 0;
+				break;
+			}
+			++s;
+		}
+
+		if (*category != 0 && *s != 0) {
 
 			// TODO: Check that the sound actually exists.
-			sounds_play(sound);
-			printf("Playing sound '%s'.\n", sound);
+			sounds_play(category, s);
+			printf("Playing sound '%s/%s'.\n", category, s);
 		}
 	}
 
@@ -43,18 +72,12 @@ static struct http_response_t handle_request(struct http_request_t *request)
 
 int main(void)
 {
-	// Seed RNG.
-	//srand((uint32_t)time(NULL));
-
-	const char *directory = "statusd112";
-
 	// Load the sounds in the sound folder.
 	sounds_initialize(directory);
 
-	printf("Loaded %u sounds in directory %s.\n", sound_count, directory);
-
 	// Initialize the web interface.
 	if (!http_server_initialize(8000, handle_request)) {
+
 		printf("Failed to start the server!\n");
 		return 0;
 	}
