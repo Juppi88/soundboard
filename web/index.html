@@ -1,0 +1,20 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+<head>
+	<title>Web Soundboard</title>
+	<!--<link rel="icon" type="image/png" href="img/favico.png" />-->
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" type="text/css" href="css/soundboard.css" />
+	<script src="js/soundboard.js"></script>
+</head>
+<body onload="soundboard_initialize();">
+	<!--<h1>Soundboard</h1>-->
+	<input id="filter" type="text" value="" oninput="soundboard_on_filter_change();">
+	<select id="folder" onchange="soundboard_on_folder_change();"></select>
+	<button onclick="soundboard_on_press_refresh();">Refresh</button>
+	<div id="sounds">
+		<!-- List of sounds goes here -->
+	</div>
+</body>
+</html>

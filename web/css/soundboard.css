@@ -1,0 +1,30 @@
+body {
+	text-align: center;
+	font-family: "Trebuchet MS", Helvetica, sans-serif;
+	font-size: 0.8em;
+	font-weight: bold;
+	margin: 0;
+	background-color: #383838;
+	color: #1a2a30;
+}
+
+.sound {
+	display: inline-block;
+	background-color: #5b93aa;
+	padding: 0.6em;
+	margin: 0.2em;
+	border: 1px solid 111;
+	border-radius: 2px;
+}
+
+.sound:hover {
+	background-color: #689fb8;
+	cursor: pointer;
+}
+
+input[type=text] {
+	border: 1px solid #66a;
+	border-radius: 5px;
+	padding: 0.25em;
+	margin: 0.75em;
+}
