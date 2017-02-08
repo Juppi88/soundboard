@@ -57,9 +57,21 @@ void sounds_shutdown(void)
 void sounds_play(const char *category, const char *sound)
 {
 	char path[MAX_PATH];
-
 	snprintf(path, sizeof(path), "%s/%s/%s.wav", sound_directory, category, sound);
-	PlaySound(path, NULL, SND_ASYNC | SND_NOWAIT);
+
+	// Use the external sound player if it is available.
+	if (file_exists("SoundPlayer.exe")) {
+
+		char command[MAX_PATH + 24];
+		snprintf(command, sizeof(command), "start SoundPlayer.exe \"%s\"", path);
+		
+		system(command);
+	}
+
+	// Otherwise fall back to PlaySound.
+	else {
+		PlaySound(path, NULL, SND_ASYNC | SND_NOWAIT);
+	}
 }
 
 const char *sounds_get_json_list(void)
