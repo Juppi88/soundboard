@@ -168,11 +168,20 @@ function soundboard_play_first_sound()
 	}
 }
 
+function soundboard_compare_folders(x, y)
+{
+	if (x.name < y.name) return -1;
+	if (x.name > y.name) return 1;
+	return 0;
+}
+
 function soundboard_update_folders()
 {
 	if (folders == null) {
 		return;
 	}
+
+	folders.sort(soundboard_compare_folders);
 
 	// Get the container div for the folder list.
 	var folderContainer = document.getElementById("folder");
@@ -185,7 +194,7 @@ function soundboard_update_folders()
 
 	for (var i = 0, len = folders.length; i < len; ++i) {
 		var f = folders[i];
-		html += "<option value=\"" + f.name + "\"" + (f.name == currentFolder ? " selected" : "") + ">" + f.name + "</option>"
+		html += "<option value=\"" + f.name + "\"" + (f.name == currentFolder ? " selected" : "") + ">" + f.name + " (" + f.sounds.length + ")</option>"
 	}
 
 	// Set the sound list HTML.
