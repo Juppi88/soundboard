@@ -1,4 +1,4 @@
-const SOUNDBOARD_SERVER = "http://127.0.0.1:8000";
+var soundboardServer = "http://localhost:8000";
 var folders = null;
 var currentFolder = "statusd112";
 var sounds = null;
@@ -7,6 +7,8 @@ var filterText = "";
 
 function soundboard_initialize()
 {
+	soundboardServer = document.location.origin;
+
 	// Load the previously used folder from local storage.
 	var previousFolder = localStorage.getItem("folder");
 
@@ -53,7 +55,7 @@ function soundboard_get_sound_list()
 		}
 	}
 
-	req.open("GET", SOUNDBOARD_SERVER + "/list/");
+	req.open("GET", soundboardServer + "/list/");
 	req.send();
 }
 
@@ -120,7 +122,7 @@ function soundboard_play_sound(sound)
 {
 	var req = new XMLHttpRequest();
 		
-	req.open("GET", SOUNDBOARD_SERVER + "/play/" + currentFolder + "/" + sound, true);
+	req.open("GET", soundboardServer + "/play/" + currentFolder + "/" + sound, true);
 	req.send();
 }
 
@@ -206,7 +208,7 @@ function soundboard_on_press_refresh()
 	// Send a refresh request to the server.
 	var req = new XMLHttpRequest();
 		
-	req.open("GET", SOUNDBOARD_SERVER + "/refresh/", true);
+	req.open("GET", soundboardServer + "/refresh/", true);
 	req.send();
 
 	// Then request the updated list.
