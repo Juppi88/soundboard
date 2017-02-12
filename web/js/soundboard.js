@@ -3,7 +3,7 @@ var folders = null;
 var currentFolder = "statusd112";
 var sounds = null;
 var filtered = null;
-var filterText = "";
+var filterList = [];
 
 function soundboard_initialize()
 {
@@ -84,7 +84,7 @@ function soundboard_filter()
 
 	// Go through the sound list and filter the wanted sounds.
 	for (var i = 0, len = sounds.length; i < len; ++i) {
-		if (filterText.length == 0 || sounds[i].toLowerCase().indexOf(filterText) > -1) {
+		if (soundboard_sound_matches_filter_list(sounds[i])) {
 			filtered.push(sounds[i]);
 		}
 	}
@@ -92,6 +92,24 @@ function soundboard_filter()
 	// Create the buttons for the filtered sounds.
 	soundboard_populate_sound_list();
 	soundboard_update_folders();
+}
+
+function soundboard_sound_matches_filter_list(soundName)
+{
+	// No filters, accept any sound.
+	if (filterList.length == 0) {
+		return true;
+	}
+
+	for (var i = 0, len = filterList.length; i < len; ++i) {
+		// Sound matches current filter.
+		if (soundName.toLowerCase().indexOf(filterList[i]) > -1) {
+			return true;
+		}
+	}
+
+	// No matching filter was found, hide the sound.
+	return false;
 }
 
 function soundboard_populate_sound_list()
@@ -133,7 +151,18 @@ function soundboard_on_filter_change()
 		return;
 	}
 
-	filterText = filterField.value.toLowerCase();
+	var filters = filterField.value;
+
+	// All sound names are converted to lower case, hence why the filters should be as well.
+	filters = filters.toLowerCase();
+
+	// Split the filter string into separate filter words.
+	filterList = filters.split(" ");
+
+	// Remove empty filters.
+	filterList = filterList.filter(function(x) { return x.length != 0 });
+
+	// Update the sound list using the new filters.
 	soundboard_filter();
 }
 
@@ -149,17 +178,6 @@ function soundboard_on_folder_change()
 	// Store the current folder to local storage so the page remembers it on a later visit.
 	localStorage.setItem("folder", currentFolder);
 
-	soundboard_filter();
-}
-
-function soundboard_play_first_sound()
-{
-	var filterField = document.getElementById("filter");
-	if (filterField == null) {
-		return;
-	}
-
-	filterText = filterField.value.toLowerCase();
 	soundboard_filter();
 }
 
