@@ -8,13 +8,23 @@
 	<link rel="stylesheet" type="text/css" href="css/soundboard.css" />
 	<script src="js/soundboard.js"></script>
 </head>
+
 <body onload="soundboard_initialize();">
-	<!--<h1>Soundboard</h1>-->
-	<input id="filter" type="text" value="" oninput="soundboard_on_filter_change();">
-	<select id="folder" onchange="soundboard_on_folder_change();"></select>
-	<button onclick="soundboard_on_press_refresh();">Refresh</button>
+
+	<div id="menu">
+		<!-- Filter input and other options. -->
+		<div class="filterrow">
+			<input class="inputelement" id="filter" type="text" value="" oninput="soundboard_on_filter_change();">
+		</div>
+		<div class="filterrow">
+			<select class="inputelement" id="folder" onchange="soundboard_on_folder_change();"></select>
+			<button class="inputelement" onclick="soundboard_on_press_refresh();">Refresh</button>
+		</div>
+	</div>
+
 	<div id="sounds">
 		<!-- List of sounds goes here -->
 	</div>
+
 </body>
 </html>

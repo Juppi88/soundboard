@@ -8,6 +8,22 @@ body {
 	color: #1a2a30;
 }
 
+#menu {
+	position: fixed;
+	z-index: 2;
+	left: 0;
+	right: 0;
+	top: 0;
+	padding: 0.75em 0;
+	border: 1px solid #66a;
+	background-color: #383838;
+}
+
+#sounds {
+	margin-top: 4.5em;
+	display: block;
+}
+
 .sound {
 	display: inline-block;
 	background-color: #5b93aa;
@@ -22,9 +38,35 @@ body {
 	cursor: pointer;
 }
 
-input[type=text] {
+.inputelement {
+	font-family: "Trebuchet MS", Helvetica, sans-serif;
+	font-size: 1.0em;
+	font-weight: bold;
+	color: #1a2a30;
+	padding: 0.4em;
+}
+
+.inputelement:not(button) {
 	border: 1px solid #66a;
 	border-radius: 5px;
-	padding: 0.25em;
-	margin: 0.75em;
+}
+
+input[type=text] {
+	padding: 0.5em;
+}
+
+.filterrow {
+	margin-top: 0.5em;
+	display: inline;
+	
+}
+
+@media only screen and (max-width: 440px) {
+	.filterrow {
+		display: block;
+	}
+
+	#sounds {
+		margin-top: 8.0em;
+	}
 }
