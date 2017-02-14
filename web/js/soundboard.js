@@ -97,9 +97,48 @@ function soundboard_filter()
 		}
 	}
 
+	// Sort the sound list based on the order of filter strings.
+	filtered.sort(soundboard_compare_sounds);
+
 	// Create the buttons for the filtered sounds.
 	soundboard_populate_sound_list();
 	soundboard_update_folders();
+}
+
+function soundboard_compare_sounds(x, y)
+{
+	x = x.toLowerCase();
+	y = y.toLowerCase();
+
+	// Compare which sound is first in the filter list.
+	if (filterList.length > 1)
+	{
+		var xIndex = 1000, yIndex = 1000;
+
+		for (var i = 0, c = filterList.length; i < c; ++i) {
+
+			if (soundboard_sound_matches_filter_string(x, filterList[i])) {
+				xIndex = i;
+				break;
+			}
+		}
+
+		for (var i = 0, c = filterList.length; i < c; ++i) {
+			if (soundboard_sound_matches_filter_string(y, filterList[i])) {
+				yIndex = i;
+				break;
+			}
+		}
+
+		if (xIndex < yIndex) return -1;
+		if (xIndex > yIndex) return 1;
+	}
+
+	// If they're matched by the same filter, compare sound names.
+	if (x < y) return -1;
+	if (x > y) return 1;
+
+	return 0;
 }
 
 function soundboard_sound_matches_filter_list(soundName)
@@ -114,26 +153,32 @@ function soundboard_sound_matches_filter_list(soundName)
 
 	for (var i = 0, len = filterList.length; i < len; ++i) {
 
-		var filter = filterList[i];
-
-		// Filter string starts and ends with a quote, the sound name must match the entire filter.
-		if (filter[0] == '"' &&
-			filter[filter.length - 1] == '"') {
-			return (soundName == filter.replace(/"/g,""));
-		}
-
-		else {
-			var subStringIdx = soundName.indexOf(filter);
-
-			if ((filterContains && subStringIdx > -1) ||	// Filter mode: contains filter text
-				(!filterContains && subStringIdx == 0)) {	// Filter mode: starts with filter text
-
-				return true;
-			}
+		if (soundboard_sound_matches_filter_string(soundName, filterList[i])) {
+			return true;
 		}
 	}
 
 	// No matching filter was found, hide the sound.
+	return false;
+}
+
+function soundboard_sound_matches_filter_string(soundName, filter)
+{
+	// Filter string starts and ends with a quote, the sound name must match the entire filter.
+	if (filter[0] == '"' &&
+		filter[filter.length - 1] == '"') {
+		return (soundName == filter.replace(/"/g,""));
+	}
+
+	else {
+		var subStringIdx = soundName.indexOf(filter);
+
+		if ((filterContains && subStringIdx > -1) ||	// Filter mode: contains filter text
+			(!filterContains && subStringIdx == 0)) {	// Filter mode: starts with filter text
+			return true;
+		}
+	}
+
 	return false;
 }
 
