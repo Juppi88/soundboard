@@ -17,6 +17,10 @@
 			<input class="inputelement" id="filter" type="text" value="" oninput="soundboard_on_filter_change();">
 		</div>
 		<div class="filterrow">
+			<select class="inputelement" id="filtermode" onchange="soundboard_on_filter_mode_change();">
+				<option>Contains</option>
+				<option>Starts with</option>
+			</select>
 			<select class="inputelement" id="folder" onchange="soundboard_on_folder_change();"></select>
 			<button class="inputelement" onclick="soundboard_on_press_refresh();">Refresh</button>
 		</div>

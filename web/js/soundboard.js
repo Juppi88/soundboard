@@ -4,6 +4,7 @@ var currentFolder = "statusd112";
 var sounds = null;
 var filtered = null;
 var filterList = [];
+var filterContains = true;
 
 function soundboard_initialize()
 {
@@ -14,6 +15,13 @@ function soundboard_initialize()
 
 	if (previousFolder != null) {
 		currentFolder = previousFolder;
+	}
+
+	// Load the previously used filter mode.
+	var previousMode = localStorage.getItem("filtermode");
+
+	if (previousMode != null) {
+		filterContains = parseInt(previousMode);
 	}
 
 	// Register enter press to play the first sound in the filtered sound list.
@@ -101,10 +109,27 @@ function soundboard_sound_matches_filter_list(soundName)
 		return true;
 	}
 
+	// Convert sound name to lower case for comparison.
+	soundName = soundName.toLowerCase();
+
 	for (var i = 0, len = filterList.length; i < len; ++i) {
-		// Sound matches current filter.
-		if (soundName.toLowerCase().indexOf(filterList[i]) > -1) {
-			return true;
+
+		var filter = filterList[i];
+
+		// Filter string starts and ends with a quote, the sound name must match the entire filter.
+		if (filter[0] == '"' &&
+			filter[filter.length - 1] == '"') {
+			return (soundName == filter.replace(/"/g,""));
+		}
+
+		else {
+			var subStringIdx = soundName.indexOf(filter);
+
+			if ((filterContains && subStringIdx > -1) ||	// Filter mode: contains filter text
+				(!filterContains && subStringIdx == 0)) {	// Filter mode: starts with filter text
+
+				return true;
+			}
 		}
 	}
 
@@ -177,6 +202,21 @@ function soundboard_on_folder_change()
 
 	// Store the current folder to local storage so the page remembers it on a later visit.
 	localStorage.setItem("folder", currentFolder);
+
+	soundboard_filter();
+}
+
+function soundboard_on_filter_mode_change()
+{
+	var modeField = document.getElementById("filtermode");
+	if (modeField == null) {
+		return;
+	}
+
+	filterContains = (modeField.value == "Contains");
+
+	// Store the current mode to local storage so the page remembers it on a later visit.
+	localStorage.setItem("filtermode", (filterContains ? 1 : 0).toString());
 
 	soundboard_filter();
 }
