@@ -31,7 +31,7 @@ static struct http_response_t handle_request(struct http_request_t *request)
 	// This will go through all the sound files so it's best to do it only on request and not every time someone requests the sound list.
 	else if (strcmp("/refresh/", request->request) == 0) {
 
-		printf("Refreshing sound lists...\n");
+		printf("\nRefreshing sound lists...\n");
 
 		sounds_shutdown();
 		sounds_initialize(directory);
@@ -58,7 +58,7 @@ static struct http_response_t handle_request(struct http_request_t *request)
 
 			// TODO: Check that the sound actually exists.
 			sounds_play(category, s);
-			printf("Playing sound '%s/%s'.\n", category, s);
+			printf("\nPlaying sound '%s/%s'.\n", category, s);
 		}
 	}
 
@@ -112,7 +112,7 @@ static struct http_response_t handle_request(struct http_request_t *request)
 		response.content = file_buffer;
 	}
 
-	printf("HTTP request - method: %s, protocol: %s, request: %s\n", request->method, request->protocol, request->request);
+	printf("\nHTTP request - method: %s, protocol: %s, request: %s\n", request->method, request->protocol, request->request);
 	
 	return response;
 }
@@ -132,7 +132,7 @@ int main(void)
 	// Loop forever.
 	for (;;) {
 		http_server_listen();
-		Sleep(100);
+		Sleep(10);
 	}
 
 	// Clean up and free memory.
