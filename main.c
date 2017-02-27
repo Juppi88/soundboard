@@ -13,6 +13,8 @@ static char file_buffer[100000];
 
 static struct http_response_t handle_request(struct http_request_t *request)
 {
+	printf("HTTP request - method: %s, protocol: %s, request: %s\n", request->method, request->protocol, request->request);
+
 	struct http_response_t response;
 	memset(&response, 0, sizeof(response));
 
@@ -58,7 +60,7 @@ static struct http_response_t handle_request(struct http_request_t *request)
 
 			// TODO: Check that the sound actually exists.
 			sounds_play(category, s);
-			printf("\nPlaying sound '%s/%s'.\n", category, s);
+			printf("Playing sound '%s/%s'.\n", category, s);
 		}
 	}
 
@@ -112,8 +114,6 @@ static struct http_response_t handle_request(struct http_request_t *request)
 		response.content = file_buffer;
 	}
 
-	printf("\nHTTP request - method: %s, protocol: %s, request: %s\n", request->method, request->protocol, request->request);
-	
 	return response;
 }
 

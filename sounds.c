@@ -59,8 +59,17 @@ void sounds_play(const char *category, const char *sound)
 	char path[MAX_PATH];
 	snprintf(path, sizeof(path), "%s/%s/%s.wav", sound_directory, category, sound);
 
-	// Use the external sound player if it is available.
-	if (file_exists("SoundPlayer.exe")) {
+	// Use the sound player app if it is available and has a named pipe open.
+	HANDLE pipe = CreateFile("\\\\.\\pipe\\soundBoardPipe", GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+
+	if (pipe != INVALID_HANDLE_VALUE) {
+
+		WriteFile(pipe, path, strlen(path), NULL, NULL);
+		CloseHandle(pipe);
+	}
+
+	// Use an external sound player if it is available.
+	else if (file_exists("SoundPlayer.exe")) {
 
 		char command[MAX_PATH + 24];
 		snprintf(command, sizeof(command), "start SoundPlayer.exe \"%s\"", path);
