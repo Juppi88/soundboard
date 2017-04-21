@@ -5,10 +5,11 @@
 #include <malloc.h>
 
 static char sound_directory[MAX_PATH];
+
 static struct sound_folder_t *first_folder;
 static uint32_t folder_count;
 
-static char json[131072]; // JSON response which contains all the sounds.
+static char json[1000000]; // JSON response which contains all the sounds.
 
 // ----------------------------------------------------------------------
  
@@ -16,6 +17,7 @@ static void sounds_process_subdirectory(char *directory);
 static void sounds_count_wav_files(char *file_name);
 static void sounds_add_sound_to_list(char *file_name);
 static void sounds_format_json(void);
+static struct sound_t *sounds_get_sound_data(const char *category, const char *sound);
 
 // ----------------------------------------------------------------------
 
@@ -41,7 +43,7 @@ void sounds_shutdown(void)
 		tmp = folder->next;
 
 		for (uint32_t i = 0; i < folder->sound_count; ++i) {
-			free(folder->sounds[i]);
+			free(folder->sounds[i].name);
 		}
 
 		free(folder->sounds);
@@ -56,6 +58,15 @@ void sounds_shutdown(void)
 
 void sounds_play(const char *category, const char *sound)
 {
+	// Increment the number of times played for the sound clip.
+	struct sound_t * data = sounds_get_sound_data(category, sound);
+
+	if (data != NULL) {
+		data->num_times_played++;
+	}
+
+	sounds_format_json();
+
 	char path[MAX_PATH];
 	snprintf(path, sizeof(path), "%s/%s/%s.wav", sound_directory, category, sound);
 
@@ -111,8 +122,8 @@ static void sounds_process_subdirectory(char *directory)
 
 	for_each_item_in_directory(path, false, sounds_count_wav_files);
 
-	// Create an array for the names of the sound files and populate it.
-	folder->sounds = malloc(folder->sound_count * sizeof(char *));
+	// Create an array to store data about the sound files and populate it.
+	folder->sounds = malloc(folder->sound_count * sizeof(struct sound_t));
 	folder->sound_count = 0;
 
 	for_each_item_in_directory(path, false, sounds_add_sound_to_list);
@@ -138,11 +149,33 @@ static void sounds_add_sound_to_list(char *file_name)
 		return;
 	}
 
+	// Open the sound, read its header and calculate the duration of the clip from it.
+	uint32_t duration = 0;
+
+	char path[MAX_PATH];
+	snprintf(path, sizeof(path), "%s/%s/%s", sound_directory, first_folder->name, file_name);
+
+	FILE *f = fopen(path, "r");
+
+	if (f != NULL) {
+		struct wav_header_t header;
+
+		fread(&header, sizeof(header), 1, f);
+		fclose(f);
+
+		duration = (uint32_t)((1000UL * header.num_data_bytes) / header.byte_rate);
+	}
+
 	// Strip the file extension.
 	file_name[strlen(file_name) - 4] = 0;
 
-	// Add the sound to the sound array.
-	first_folder->sounds[first_folder->sound_count] = string_duplicate(file_name);
+	// Add the sound info to the sound array.
+	struct sound_t *sound = &first_folder->sounds[first_folder->sound_count];
+
+	sound->name = string_duplicate(file_name);
+	sound->duration = duration;
+	sound->num_times_played = 0;
+
 	first_folder->sound_count++;
 }
 
@@ -163,7 +196,8 @@ static void sounds_format_json(void)
 		// Add each sound to the JSON.
 		if (folder->sound_count != 0) {
 			for (uint32_t i = 0; i < folder->sound_count; ++i) {
-				len += snprintf(&json[len], sizeof(json) - len, "\"%s\"%s", folder->sounds[i], (i < folder->sound_count - 1 ? ", " : ""));
+				len += snprintf(&json[len], sizeof(json) - len, "{ \"name\": \"%s\", \"duration\": %u, \"played\": %u }%s",
+					folder->sounds[i].name, folder->sounds[i].duration, folder->sounds[i].num_times_played, (i < folder->sound_count - 1 ? ", " : ""));
 			}
 		}
 
@@ -172,4 +206,28 @@ static void sounds_format_json(void)
 	}
 
 	len += snprintf(&json[len], sizeof(json) - len, "\n\t]\n}");
+
+	printf("Sound list JSON size: %u bytes\n", len);
+}
+
+static struct sound_t *sounds_get_sound_data(const char *category, const char *sound)
+{
+	for (struct sound_folder_t *folder = first_folder; folder != NULL; folder = folder->next) {
+
+		// Find the correct category first.
+		if (strcmp(folder->name, category) == 0) {
+
+			for (uint32_t i = 0; i < folder->sound_count; ++i) {
+
+				// Return the sound data if the name of the sound file matches.
+				if (strcmp(folder->sounds[i].name, sound) == 0) {
+					return &folder->sounds[i];
+				}
+			}
+
+			break;
+		}
+	}
+
+	return NULL;
 }
