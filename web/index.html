@@ -12,10 +12,12 @@
 <body onload="soundboard_initialize();">
 
 	<div id="menu">
+
 		<!-- Filter input and other options. -->
 		<div class="filterrow">
 			<input class="inputelement" id="filter" type="text" value="" oninput="soundboard_on_filter_change();">
 		</div>
+
 		<div class="filterrow">
 			<select class="inputelement" id="filtermode" onchange="soundboard_on_filter_mode_change();">
 				<option>Contains</option>
@@ -24,7 +26,16 @@
 			<select class="inputelement" id="folder" onchange="soundboard_on_folder_change();"></select>
 			<button class="inputelement" onclick="soundboard_on_press_refresh();">Refresh</button>
 		</div>
+
+		<!-- Sound queue -->
+		<div class="filterrow" id="queuecontainer">
+			<div id="queue"></div>
+			<button class="inputelement" onclick="soundboard_on_press_play_queue();">Play all</button>
+			<button class="inputelement" onclick="soundboard_on_press_clear_queue();">Clear</button>
+		</div>
 	</div>
+
+	<div id="emptyspace"></div>
 
 	<div id="sounds">
 		<!-- List of sounds goes here -->

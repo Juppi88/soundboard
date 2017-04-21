@@ -19,12 +19,20 @@ body {
 	background-color: #383838;
 }
 
-#sounds {
-	margin-top: 4.5em;
+#emptyspace {
+	min-height: 0;
+	margin: 0;
 	display: block;
 }
 
-.sound {
+#sounds {
+	margin: 0;
+	margin-top: 4em;
+	padding-top: 0.5em;
+	display: block;
+}
+
+.sound, .queuedsound {
 	display: inline-block;
 	background-color: #5b93aa;
 	padding: 0.6em;
@@ -61,12 +69,33 @@ input[type=text] {
 	display: inline;
 }
 
+#queuecontainer {
+	display: block;
+	padding: 0.75em;
+	padding-bottom: 0;
+	border-top: 1px solid #66a;
+}
+
+#queue, #queuecontainer .inputelement {
+	display: inline;
+}
+
+#queuecontainer .inputelement {
+	padding: 0.1em 0.3em;
+}
+
+.queuedsound {
+	padding: 0.4em;
+	margin: 0.15em;
+	font-size: 0.9em;
+}
+
 @media only screen and (max-width: 700px) {
 	.filterrow {
 		display: block;
 	}
 
 	#sounds {
-		margin-top: 8.0em;
+		margin-top: 7.5em;
 	}
 }

@@ -6,6 +6,17 @@ var filtered = null;
 var filterList = [];
 var filterContains = true;
 
+var touchTimer = null;
+var touchEnded = 0;
+const TouchTime = 1000;
+
+// Queue variables
+var soundQueue = [];
+var currentQueueSound = 0;
+var soundQueueTimer = null;
+
+// --------------------------------------------------------------------------------
+
 function soundboard_initialize()
 {
 	soundboardServer = document.location.origin;
@@ -40,6 +51,21 @@ function soundboard_initialize()
 			}
 		}
 	}
+
+	// Register an event listener to cancel tap events on mobile devices.
+	document.ontouchend = function(e) {
+
+			if (touchTimer != null) {
+
+				clearTimeout(touchTimer);
+
+				touchTimer = null;
+				touchEnded = new Date();
+			}
+		};
+
+	// Clear and hide the sound queue until new entries are added to it.
+	soundboard_populate_queue();
 
 	// Get the list of sounds from the web api server and create the buttons for each sound.
 	soundboard_get_sound_list();
@@ -92,7 +118,7 @@ function soundboard_filter()
 
 	// Go through the sound list and filter the wanted sounds.
 	for (var i = 0, len = sounds.length; i < len; ++i) {
-		if (soundboard_sound_matches_filter_list(sounds[i])) {
+		if (soundboard_sound_matches_filter_list(sounds[i].name)) {
 			filtered.push(sounds[i]);
 		}
 	}
@@ -107,8 +133,8 @@ function soundboard_filter()
 
 function soundboard_compare_sounds(x, y)
 {
-	x = x.toLowerCase();
-	y = y.toLowerCase();
+	x = x.name.toLowerCase();
+	y = y.name.toLowerCase();
 
 	// Compare which sound is first in the filter list.
 	if (filterList.length > 1)
@@ -203,15 +229,140 @@ function soundboard_populate_sound_list()
 
 function soundboard_add_button_text(sound)
 {
-	return '<div class="sound" onclick="soundboard_play_sound(\'' + sound + '\');">' + sound + '</div>';
+	return '<div class="sound" ontouchstart="soundboard_tap_sound(\'' + sound.name + '\', ' + sound.duration + ');"' +
+			' onclick="soundboard_play_sound(event, \'' + sound.name + '\', ' + sound.duration + ');">' + sound.name + '</div>';
 }
 
-function soundboard_play_sound(sound)
+function soundboard_tap_sound(sound, duration)
 {
+	if (duration != 0) {
+		touchTimer = setTimeout(soundboard_on_sound_tapped, TouchTime, sound, duration);
+	}
+}
+
+function soundboard_on_sound_tapped(sound, duration)
+{
+	touchTimer = null;
+	soundboard_add_to_queue(sound, duration);
+}
+
+function soundboard_play_sound(ev, sound, duration)
+{
+	// Cancel tap detection timer.
+	if (touchTimer != null) {
+		clearTimeout(touchTimer);
+		touchTimer = null;
+	}
+
+	// Don't play a sound right after tapping.
+	var now = new Date();
+	if (touchEnded != null && now - touchEnded < 500) {
+		//return;
+	}
+
+	// If the control key is pressed while clicking, add the sound to the queue.
+	if (duration != 0 && ev != null && ev.ctrlKey) {
+		soundboard_add_to_queue(sound, duration);
+		return;
+	}
+
+	// Otherwise play the sound immediately.
 	var req = new XMLHttpRequest();
 		
 	req.open("GET", soundboardServer + "/play/" + currentFolder + "/" + sound, true);
 	req.send();
+}
+
+function soundboard_add_to_queue(sound, duration)
+{
+	soundQueue.push([ sound, duration ]);
+	soundboard_populate_queue();
+}
+
+function soundboard_populate_queue()
+{
+	// Get the container divs for the sound queue.
+	var emptySpace = document.getElementById("emptyspace");
+	var queueContainer = document.getElementById("queuecontainer");
+	var queue = document.getElementById("queue");
+
+	if (emptySpace == null || queueContainer == null || queue == null) {
+		return;
+	}
+
+	// If the queue is empty, hide the queue.
+	if (soundQueue.length == 0) {
+		queueContainer.style.display = "none";
+		emptySpace.style.minHeight = "0";
+		return;
+	}
+
+	// Make the queue visible.
+	queueContainer.style.display = "block";
+	emptySpace.style.minHeight = (queueContainer.offsetHeight + 10) + "px"; // Horrible hack to move the sound list a bit down so it isn't blocked by the queue.
+	//alert(queueContainer.offsetHeight + "px");
+
+	// Add the queued sounds to the lists as divs.
+	var html = "";
+
+	for (var i = 0, len = soundQueue.length; i < len; ++i) {
+		html += '<div class="queuedsound">' + soundQueue[i][0] + '</div>';
+	}
+
+	// Update the HTML of the queue container.
+	queue.innerHTML = html;
+}
+
+function soundboard_play_next_in_queue()
+{
+	// Make sure something hasn't gone wrong and the queue hasn't been cleared while playing it.
+	if (currentQueueSound >= soundQueue.length) {
+		soundboard_abort_queue()
+		return;
+	}
+
+	var sound = soundQueue[currentQueueSound][0];
+	var duration = soundQueue[currentQueueSound][1];
+	
+	if (++currentQueueSound >= soundQueue.length) {
+		// The queue has finished!
+		soundboard_abort_queue();
+	}
+	else {
+		// Set a timer for playing the next sound after the current one has finished.
+		soundQueueTimer = setTimeout(soundboard_play_next_in_queue, duration);
+	}
+
+	// Send a request to play the sound.
+	var req = new XMLHttpRequest();
+		
+	req.open("GET", soundboardServer + "/play/" + currentFolder + "/" + sound, true);
+	req.send();
+}
+
+function soundboard_abort_queue()
+{
+	if (soundQueueTimer != null) {
+		clearTimeout(soundQueueTimer);
+	}
+
+	soundQueueTimer = null;
+	currentQueueSound = 0;
+}
+
+function soundboard_on_press_play_queue()
+{
+	soundboard_abort_queue();
+	soundboard_play_next_in_queue();
+}
+
+function soundboard_on_press_clear_queue()
+{
+	soundQueue = [];
+	soundboard_populate_queue();
+
+	// If the queue was already being played, abort it.
+	soundboard_abort_queue();
 }
 
 function soundboard_on_filter_change()
@@ -249,6 +400,7 @@ function soundboard_on_folder_change()
 	localStorage.setItem("folder", currentFolder);
 
 	soundboard_filter();
+	soundboard_on_press_clear_queue();
 }
 
 function soundboard_on_filter_mode_change()
@@ -269,7 +421,7 @@ function soundboard_on_filter_mode_change()
 function soundboard_play_first_sound()
 {
 	if (filtered.length != 0) {
-		soundboard_play_sound(filtered[0]);
+		soundboard_play_sound(null, filtered[0], 0);
 	}
 }
 
