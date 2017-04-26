@@ -16,7 +16,7 @@ static char json[1000000]; // JSON response which contains all the sounds.
 static void sounds_process_subdirectory(char *directory);
 static void sounds_count_wav_files(char *file_name);
 static void sounds_add_sound_to_list(char *file_name);
-static void sounds_format_json(void);
+static size_t sounds_format_json(void);
 static struct sound_t *sounds_get_sound_data(const char *category, const char *sound);
 
 // ----------------------------------------------------------------------
@@ -32,7 +32,9 @@ void sounds_initialize(const char *folder)
 	for_each_item_in_directory(folder, true, sounds_process_subdirectory);
 
 	// Now that we have the list of sounds, format the JSON response containing all the sounds and cache it.
-	sounds_format_json();
+	size_t len = sounds_format_json();
+
+	printf("Sound list JSON size: %u bytes\n", len);
 }
 
 void sounds_shutdown(void)
@@ -166,20 +168,37 @@ static void sounds_add_sound_to_list(char *file_name)
 		duration = (uint32_t)((1000UL * header.num_data_bytes) / header.byte_rate);
 	}
 
+
+	// Get timestamp for when the file was last modified.
+	time_t modified = 0;
+
+	HANDLE *handle = CreateFile(path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+
+	if (handle != NULL) {
+		FILETIME created, accessed, written;
+
+		GetFileTime(handle, &created, &accessed, &written);
+		CloseHandle(handle);
+
+		// Windows tick is 100ns and the epoch starts at 01/01/1601.
+		modified = (time_t)((*(long long*)&written) / 10000000 - 11644473600LL);
+	}
+	
 	// Strip the file extension.
 	file_name[strlen(file_name) - 4] = 0;
-
+	
 	// Add the sound info to the sound array.
 	struct sound_t *sound = &first_folder->sounds[first_folder->sound_count];
 
 	sound->name = string_duplicate(file_name);
 	sound->duration = duration;
 	sound->num_times_played = 0;
+	sound->modified = modified;
 
 	first_folder->sound_count++;
 }
 
-static void sounds_format_json(void)
+static size_t sounds_format_json(void)
 {
 	size_t len = 0, c = 0;
 
@@ -196,8 +215,8 @@ static void sounds_format_json(void)
 		// Add each sound to the JSON.
 		if (folder->sound_count != 0) {
 			for (uint32_t i = 0; i < folder->sound_count; ++i) {
-				len += snprintf(&json[len], sizeof(json) - len, "{ \"name\": \"%s\", \"duration\": %u, \"played\": %u }%s",
-					folder->sounds[i].name, folder->sounds[i].duration, folder->sounds[i].num_times_played, (i < folder->sound_count - 1 ? ", " : ""));
+				len += snprintf(&json[len], sizeof(json) - len, "{ \"name\": \"%s\", \"duration\": %u, \"modified\": %u, \"played\": %u }%s",
+					folder->sounds[i].name, folder->sounds[i].duration, (unsigned int)folder->sounds[i].modified, folder->sounds[i].num_times_played, (i < folder->sound_count - 1 ? ", " : ""));
 			}
 		}
 
@@ -207,7 +226,7 @@ static void sounds_format_json(void)
 
 	len += snprintf(&json[len], sizeof(json) - len, "\n\t]\n}");
 
-	printf("Sound list JSON size: %u bytes\n", len);
+	return len;
 }
 
 static struct sound_t *sounds_get_sound_data(const char *category, const char *sound)

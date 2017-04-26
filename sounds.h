@@ -11,6 +11,7 @@ struct sound_t {
 	char *name;					// Name of the sound file
 	uint32_t duration;			// Duration of the sound clip in milliseconds
 	uint32_t num_times_played;	// How many times has this sound clip been played
+	time_t modified;			// Timestamp for when the sound file was last modified
 };
 
 // --------------------------------------------------------------------------------

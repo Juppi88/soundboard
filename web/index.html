@@ -23,6 +23,11 @@
 				<option>Contains</option>
 				<option>Starts with</option>
 			</select>
+			<select class="inputelement" id="sortmode" onchange="soundboard_on_sort_mode_change();">
+				<option>Sort by name</option>
+				<option>Sort by date</option>
+				<!--<option>Sort by popularity</option>-->
+			</select>
 			<select class="inputelement" id="folder" onchange="soundboard_on_folder_change();"></select>
 			<button class="inputelement" onclick="soundboard_on_press_refresh();">Refresh</button>
 		</div>

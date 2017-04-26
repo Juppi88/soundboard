@@ -10,10 +10,17 @@ var touchTimer = null;
 var touchEnded = 0;
 const TouchTime = 1000;
 
+// Result sorting
+const SortByName = 0;
+const SortByModified = 1;
+const SortByPopularity = 2;
+var sortMode = SortByName;
+
 // Queue variables
 var soundQueue = [];
 var currentQueueSound = 0;
 var soundQueueTimer = null;
+const TimeBetweenSounds = 0;
 
 // --------------------------------------------------------------------------------
 
@@ -21,19 +28,8 @@ function soundboard_initialize()
 {
 	soundboardServer = document.location.origin;
 
-	// Load the previously used folder from local storage.
-	var previousFolder = localStorage.getItem("folder");
-
-	if (previousFolder != null) {
-		currentFolder = previousFolder;
-	}
-
-	// Load the previously used filter mode.
-	var previousMode = localStorage.getItem("filtermode");
-
-	if (previousMode != null) {
-		filterContains = parseInt(previousMode);
-	}
+	// Restore settings from local storage-
+	soundboard_restore_settings();
 
 	// Register enter press to play the first sound in the filtered sound list.
 	var filterField = document.getElementById("filter");
@@ -133,6 +129,15 @@ function soundboard_filter()
 
 function soundboard_compare_sounds(x, y)
 {
+	if (sortMode == SortByPopularity) {
+		if (x.played > y.played) return -1;
+		if (x.played < y.played) return 1;
+	}
+	else if (sortMode == SortByModified) {
+		if (x.modified > y.modified) return -1;
+		if (x.modified < y.modified) return 1;
+	}
+
 	x = x.name.toLowerCase();
 	y = y.name.toLowerCase();
 
@@ -230,7 +235,8 @@ function soundboard_populate_sound_list()
 function soundboard_add_button_text(sound)
 {
 	return '<div class="sound" ontouchstart="soundboard_tap_sound(\'' + sound.name + '\', ' + sound.duration + ');"' +
-			' onclick="soundboard_play_sound(event, \'' + sound.name + '\', ' + sound.duration + ');">' + sound.name + '</div>';
+			' onclick="soundboard_play_sound(event, \'' + sound.name + '\', ' + sound.duration + ');">' +
+			sound.name + (sortMode == SortByPopularity && sound.played != 0 ? '(' + sound.played + ')' : '') + '</div>';
 }
 
 function soundboard_tap_sound(sound, duration)
@@ -322,7 +328,7 @@ function soundboard_play_next_in_queue()
 	}
 
 	var sound = soundQueue[currentQueueSound][0];
-	var duration = soundQueue[currentQueueSound][1];
+	var duration = soundQueue[currentQueueSound][1] + TimeBetweenSounds;
 	
 	if (++currentQueueSound >= soundQueue.length) {
 		// The queue has finished!
@@ -418,6 +424,29 @@ function soundboard_on_filter_mode_change()
 	soundboard_filter();
 }
 
+function soundboard_on_sort_mode_change()
+{
+	var modeField = document.getElementById("sortmode");
+	if (modeField == null) {
+		return;
+	}
+
+	if (modeField.value == "Sort by name") {
+		sortMode = SortByName;
+	}
+	else if (modeField.value == "Sort by date") {
+		sortMode = SortByModified;
+	}
+	else if (modeField.value == "Sort by popularity") {
+		sortMode = SortByPopularity;
+	}
+
+	// Store the current mode to local storage so the page remembers it on a later visit.
+	localStorage.setItem("sortmode", sortMode.toString());
+
+	soundboard_filter();
+}
+
 function soundboard_play_first_sound()
 {
 	if (filtered.length != 0) {
@@ -468,4 +497,49 @@ function soundboard_on_press_refresh()
 
 	// Then request the updated list.
 	soundboard_get_sound_list();
+}
+
+function soundboard_restore_settings()
+{
+	// Load the previously used folder from local storage.
+	var previousFolder = localStorage.getItem("folder");
+
+	if (previousFolder != null) {
+		currentFolder = previousFolder;
+	}
+
+	// Load the previously used filter mode.
+	var previousMode = localStorage.getItem("filtermode");
+
+	if (previousMode != null) {
+		filterContains = parseInt(previousMode);
+	}
+
+	var filterField = document.getElementById("filtermode");
+
+	if (filterField != null) {
+		if (filterContains) {
+			filterField.value = "Contains";
+		}
+		else {
+			filterField.value = "Starts with";
+		}
+	}
+
+	// Load the previously used sort mode.
+	var previousSortMode = localStorage.getItem("sortmode");
+
+	if (previousSortMode != null) {
+		sortMode = parseInt(previousSortMode);
+	}
+
+	var sortField = document.getElementById("sortmode");
+
+	if (sortField != null) {
+		switch (sortMode) {
+			case SortByName: { sortField.value = "Sort by name"; break; }
+			case SortByModified: { sortField.value = "Sort by date"; break; }
+			case SortByPopularity: { sortField.value = "Sort by popularity"; break; }
+		}
+	}
 }
