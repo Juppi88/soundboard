@@ -65,6 +65,76 @@ function soundboard_initialize()
 
 	// Get the list of sounds from the web api server and create the buttons for each sound.
 	soundboard_get_sound_list();
+
+	addKeyboardProcessing();
+}
+
+function addKeyboardProcessing()
+{
+    // add processing for keyboard keys
+    window.addEventListener("keydown", function (event) {
+        if (event.defaultPrevented) {
+            return; // Do nothing if the event was already processed
+        }
+
+        //console.log(event.key);
+
+        switch (event.key) {
+            case "ArrowDown":
+                // code for "down arrow" key press.
+                console.log("Down");
+                break;
+            case "ArrowUp":
+                // code for "up arrow" key press.
+                console.log("Up");
+                break;
+            case "ArrowLeft":
+                // code for "left arrow" key press.
+                console.log("Left");
+                break;
+            case "ArrowRight":
+                // code for "right arrow" key press.
+                console.log("Right");
+                break;
+            case "1": // keyboard alpha number 1
+                var randomSound = getRandomSound();
+                soundboard_add_to_queue(randomSound.name, randomSound.duration);
+                break;
+            case "2": // keyboard alpha number 2
+                for (var i = 0, len = 2; i < len; ++i)
+                {
+                    var randomSound = getRandomSound();
+                    soundboard_add_to_queue(randomSound.name, randomSound.duration);
+                }
+                break;
+            case "3":
+                for (var i = 0, len = 3; i < len; ++i) {
+                    var randomSound = getRandomSound();
+                    soundboard_add_to_queue(randomSound.name, randomSound.duration);
+                }
+                break;
+            default:
+                return; // Quit when this doesn't handle the key event.
+        }
+
+        // Cancel the default action to avoid it being handled twice
+        event.preventDefault();
+    }, true);
+    // the last option dispatches the event to the listener first,
+    // then dispatches event to window
+}
+
+function getRandomSound()
+{
+    var index = getRandomInt(0, sounds.length);
+    console.log("index: " + index);
+    var randomSound = sounds[index];
+    console.log("randomSound:" + randomSound);
+    return randomSound;
+}
+
+function getRandomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
 function soundboard_get_sound_list()
@@ -267,7 +337,8 @@ function soundboard_play_sound(ev, sound, duration)
 	}
 
 	// If the control key is pressed while clicking, add the sound to the queue.
-	if (duration != 0 && ev != null && ev.ctrlKey) {
+	if (duration != 0 && ev != null && ev.ctrlKey)
+	{
 		soundboard_add_to_queue(sound, duration);
 		return;
 	}
@@ -277,6 +348,52 @@ function soundboard_play_sound(ev, sound, duration)
 		
 	req.open("GET", soundboardServer + "/play/" + currentFolder + "/" + sound, true);
 	req.send();
+}
+
+function soundboard_play_sound_from_queue(ev, sound, duration, queueIndex) {
+    // Cancel tap detection timer.
+    if (touchTimer != null) {
+        clearTimeout(touchTimer);
+        touchTimer = null;
+    }
+
+    // Don't play a sound right after tapping.
+    var now = new Date();
+    if (touchEnded != null && now - touchEnded < 500) {
+        //return;
+    }
+
+    // If the control key is pressed while clicking, add the sound to the queue.
+    if (duration != 0 && ev != null && ev.ctrlKey) {
+        if (soundQueue[queueIndex] != null)
+            soundboard_remove_from_queue(queueIndex);
+        else
+            soundboard_add_to_queue(sound, duration);
+        return;
+    }
+
+    // Otherwise play the sound immediately.
+    var req = new XMLHttpRequest();
+
+    req.open("GET", soundboardServer + "/play/" + currentFolder + "/" + sound, true);
+    req.send();
+}
+
+function soundQueue_has_sound(sound)
+{
+    for (var i = 0, iLen = soundQueue.length; i < iLen; i++) {
+
+        //var thing = arr[i];
+        //console.log(thing.name, value[0]);
+
+        if (soundQueue[i] == sound) return arr[i];
+    }
+}
+
+function soundboard_remove_from_queue(queueIndex)
+{
+    soundQueue.splice(queueIndex, 1);
+    soundboard_populate_queue();
 }
 
 function soundboard_add_to_queue(sound, duration)
@@ -291,6 +408,7 @@ function soundboard_populate_queue()
 	var emptySpace = document.getElementById("emptyspace");
 	var queueContainer = document.getElementById("queuecontainer");
 	var queue = document.getElementById("queue");
+	var soundContainer = document.getElementById("sounds");
 
 	if (emptySpace == null || queueContainer == null || queue == null) {
 		return;
@@ -311,12 +429,43 @@ function soundboard_populate_queue()
 	// Add the queued sounds to the lists as divs.
 	var html = "";
 
-	for (var i = 0, len = soundQueue.length; i < len; ++i) {
-		html += '<div class="queuedsound">' + soundQueue[i][0] + '</div>';
+	for (var i = 0, len = soundQueue.length; i < len; ++i)
+	{
+	    //console.log(soundQueue.length + " " + filtered.length);
+
+	    var actualSound = getByValue(filtered, soundQueue[i]);
+
+	    if (actualSound != null)
+	    {
+	        html += soundboard_add_queue_button_text(actualSound, i);
+	    }
+		//html += '<div class="queuedsound">' + soundQueue[i][0] + '</div>';
 	}
 
 	// Update the HTML of the queue container.
 	queue.innerHTML = html;
+}
+
+function getByValue(arr, value) {
+
+    for (var i = 0, iLen = arr.length; i < iLen; i++) {
+
+        //var thing = arr[i];
+        //console.log(thing.name, value[0]);
+
+        if (arr[i].name == value[0]) return arr[i];
+    }
+
+    return null;
+}
+
+function soundboard_add_queue_button_text(sound, soundIndex) {
+    return '<div class="queuedsound" onclick="soundboard_play_sound_from_queue(event, \'' + sound.name + '\', ' + sound.duration + ', ' + soundIndex + ');">' +
+			sound.name + (sortMode == SortByPopularity && sound.played != 0 ? '(' + sound.played + ')' : '') + '</div>';
+
+    //return '<div class="queuedsound" ontouchstart="soundboard_tap_sound(\'' + sound.name + '\', ' + sound.duration + ');"' +
+	//		' onclick="soundboard_play_sound_from_queue(event, \'' + sound.name + '\', ' + sound.duration + '\', ' + soundIndex + ');">' +
+	//		sound.name + (sortMode == SortByPopularity && sound.played != 0 ? '(' + sound.played + ')' : '') + '</div>';
 }
 
 function soundboard_play_next_in_queue()
@@ -450,7 +599,7 @@ function soundboard_on_sort_mode_change()
 function soundboard_play_first_sound()
 {
 	if (filtered.length != 0) {
-		soundboard_play_sound(null, filtered[0], 0);
+		soundboard_play_sound(null, filtered[0].name, 0);
 	}
 }
 
