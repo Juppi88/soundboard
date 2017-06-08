@@ -85,9 +85,16 @@ void sounds_play(const char *category, const char *sound)
 	else if (file_exists("SoundPlayer.exe")) {
 
 		char command[MAX_PATH + 24];
-		snprintf(command, sizeof(command), "start SoundPlayer.exe \"%s\"", path);
+		snprintf(command, sizeof(command), "./SoundPlayer.exe \"%s\"", path);
 		
-		system(command);
+		STARTUPINFO si;
+		PROCESS_INFORMATION pi;
+
+		ZeroMemory(&pi, sizeof(pi));
+		ZeroMemory(&si, sizeof(si));
+		si.cb = sizeof(si);
+		
+		CreateProcess("SoundPlayer.exe", command, NULL, NULL, FALSE, CREATE_NEW_PROCESS_GROUP, NULL, ".", &si, &pi);
 	}
 
 	// Otherwise fall back to PlaySound.
