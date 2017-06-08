@@ -13,7 +13,7 @@ static char file_buffer[100000];
 
 static struct http_response_t handle_request(struct http_request_t *request)
 {
-	printf("HTTP request - method: %s, protocol: %s, request: %s\n", request->method, request->protocol, request->request);
+	printf("HTTP request - method: %s, protocol: %s, host: %s, request: %s\n", request->method, request->protocol, request->hostname, request->request);
 
 	struct http_response_t response;
 	memset(&response, 0, sizeof(response));
