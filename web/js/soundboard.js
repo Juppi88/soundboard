@@ -150,6 +150,7 @@ function soundboard_get_sound_list()
 
 				// If the received JSON is valid, create the buttons for the sounds.
 				folders = data.folders;
+				soundboard_update_folders();
 				soundboard_on_filter_change();
 			}
 		}
