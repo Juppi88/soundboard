@@ -34,7 +34,7 @@ void sounds_initialize(const char *folder)
 	// Now that we have the list of sounds, format the JSON response containing all the sounds and cache it.
 	size_t len = sounds_format_json();
 
-	printf("Sound list JSON size: %u bytes\n", len);
+	printf("Sound list JSON size: %u bytes\n\n", len);
 }
 
 void sounds_shutdown(void)
@@ -210,7 +210,8 @@ static size_t sounds_format_json(void)
 	size_t len = 0, c = 0;
 
 	// TODO: Careful with buffer overflows, idiot!
-	len += snprintf(&json[len], sizeof(json) - len, "{\n\t\"folders\":[\n\t\t");
+	len += snprintf(&json[len], sizeof(json) - len, "{\n\t\"result\": true,\n");
+	len += snprintf(&json[len], sizeof(json) - len, "\t\"folders\":[\n\t\t");
 
 	for (struct sound_folder_t *folder = first_folder; folder != NULL; folder = folder->next) {
 

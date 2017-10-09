@@ -3,40 +3,56 @@
 #include "utils.h"
 #include "httpserver/httpserver.h"
 #include <stdio.h>
+#include <time.h>
 
 // The folder in which all the sound category subolders are located.
 // TODO: Supply this as a command line argument?
 static const char *directory = "sounds";
-static char file_buffer[100000];
+
+#define JSON_MIME_TYPE "application/json";
+
+#define RESULT_JSON \
+"{"\
+"	\"result\": %s"\
+"}"
 
 // --------------------------------------------------
 
 static struct http_response_t handle_request(struct http_request_t *request)
 {
-	printf("HTTP request - method: %s, protocol: %s, host: %s, request: %s\n", request->method, request->protocol, request->hostname, request->request);
+	char result_buffer[32];
 
 	struct http_response_t response;
 	memset(&response, 0, sizeof(response));
 
 	response.message = HTTP_200_OK;
-	
+
+	// Get the current time for logging.
+	time_t timestamp = time(NULL);
+	struct tm *now = localtime(&timestamp);
+
 	// Retrieve and return a list of sounds loaded into the system.
 	if (strcmp("/list/", request->request) == 0) {
 
-		printf("Sound list was requested.\n");
+		printf("[%02d:%02d.%02d] (%s) Sound list was requested.\n", now->tm_hour, now->tm_min, now->tm_sec, request->requester);
 
 		response.content = sounds_get_json_list();
-		response.content_type = "text/json";
+		response.content_type = JSON_MIME_TYPE;
 	}
 
 	// Refresh the sound list.
 	// This will go through all the sound files so it's best to do it only on request and not every time someone requests the sound list.
 	else if (strcmp("/refresh/", request->request) == 0) {
 
-		printf("\nRefreshing sound lists...\n");
+		printf("[%02d:%02d.%02d] (%s) Refreshing sound lists...\n\n", now->tm_hour, now->tm_min, now->tm_sec, request->requester);
 
 		sounds_shutdown();
 		sounds_initialize(directory);
+
+		snprintf(result_buffer, sizeof(result_buffer), RESULT_JSON, "true");
+
+		response.content = result_buffer;
+		response.content_type = JSON_MIME_TYPE;
 	}
 
 	// Play a sound with the given filename.
@@ -60,58 +76,25 @@ static struct http_response_t handle_request(struct http_request_t *request)
 
 			// TODO: Check that the sound actually exists.
 			sounds_play(category, s);
-			printf("Playing sound '%s/%s'.\n", category, s);
-		}
-	}
+			printf("[%02d:%02d.%02d] (%s) Playing sound '%s/%s'.\n", now->tm_hour, now->tm_min, now->tm_sec, request->requester, category, s);
 
-	// Serve static files (html, css, js).
-	else {
-		const char *req = request->request;
-
-		if (strcmp(req, "/") == 0) {
-			req = "/index.html";
-		}
-
-		char path[MAX_PATH];
-		snprintf(path, sizeof(path), "./web%s", req);
-
-		FILE *file = fopen(path, "r");
-
-		// Requested file was not found!
-		if (file == NULL) {
-			response.message = HTTP_404_NOT_FOUND;
-			return response;
-		}
-
-		// Set the correct MIME type.
-		if (string_ends_with(req, ".html")) {
-			response.content_type = "text/html";
-		}
-		else if (string_ends_with(req, ".css")) {
-			response.content_type = "text/css";
-		}
-		else if (string_ends_with(req, ".js")) {
-			response.content_type = "application/javascript";
+			snprintf(result_buffer, sizeof(result_buffer), RESULT_JSON, "true");
 		}
 		else {
-			response.content_type = "text/plain";
+			snprintf(result_buffer, sizeof(result_buffer), RESULT_JSON, "false");
 		}
 
-		// Get the size of the file.
-		fseek(file, 0, SEEK_END);
-		long length = ftell(file);
-		fseek(file, 0, SEEK_SET);
+		response.content = result_buffer;
+		response.content_type = JSON_MIME_TYPE;
+	}
 
-		// Read the contents of the file into a buffer which we can send to the requester.
-		if (length >= sizeof(file_buffer)) {
-			length = sizeof(file_buffer) - 1;
-		}
+	// Unsupported request!
+	else {
+		snprintf(result_buffer, sizeof(result_buffer), RESULT_JSON, "false");
 
-		size_t read = fread(file_buffer, 1, length, file);
-		fclose(file);
-
-		file_buffer[read] = 0;
-		response.content = file_buffer;
+		response.message = HTTP_400_BAD_REQUEST;
+		response.content = result_buffer;
+		response.content_type = JSON_MIME_TYPE;
 	}
 
 	return response;
@@ -123,16 +106,32 @@ int main(void)
 	sounds_initialize(directory);
 
 	// Initialize the web interface.
-	if (!http_server_initialize(8000, handle_request)) {
+	struct server_ssettings_t settings;
+	memset(&settings, 0, sizeof(settings));
+
+	settings.handler = handle_request;
+	settings.port = 8000;
+	settings.timeout = 10;
+	settings.max_connections = 25;
+	settings.connection_timeout = 60;
+
+	// Get static web files from the 'web' folder.
+	struct server_directory_t directories[] = { { "/", "web" } };
+
+	settings.directories = directories;
+	settings.directories_len = 1;
+
+	if (!http_server_initialize(settings)) {
 
 		printf("Failed to start the server!\n");
 		return 0;
 	}
 
+	printf("Listening for web API requests on port %u.\n\n", settings.port);
+
 	// Loop forever.
 	for (;;) {
 		http_server_listen();
-		Sleep(10);
 	}
 
 	// Clean up and free memory.
