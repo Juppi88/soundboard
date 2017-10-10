@@ -106,7 +106,7 @@ int main(void)
 	sounds_initialize(directory);
 
 	// Initialize the web interface.
-	struct server_ssettings_t settings;
+	struct server_settings_t settings;
 	memset(&settings, 0, sizeof(settings));
 
 	settings.handler = handle_request;
